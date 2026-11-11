@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ελληνικά · 20 Minuten</title>
+<meta name="description" content="Danis griechisches Lernprogramm: 20 Minuten am Tag, offline in der Metro.">
+<meta name="theme-color" content="#1f4e8c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ελληνικά">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="brand-el">Ελληνικά</span><span class="brand-sub">20 Minuten am Tag</span></div>
+  <div id="offline-badge" class="badge" title="Offline-Status">…</div>
+</header>
+
+<main id="view" class="view"></main>
+
+<nav class="tabs" id="tabs">
+  <button data-view="home" class="tab active"><span class="tab-ic">●</span>Heute</button>
+  <button data-view="woerter" class="tab"><span class="tab-ic">≡</span>Wörter</button>
+  <button data-view="muster" class="tab"><span class="tab-ic">¶</span>Muster</button>
+  <button data-view="mehr" class="tab"><span class="tab-ic">⚙</span>Mehr</button>
+</nav>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="data/woerter.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
