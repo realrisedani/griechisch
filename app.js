@@ -3,7 +3,7 @@
 (() => {
   "use strict";
 
-  const APP_VERSION = "1.0.0";
+  const APP_VERSION = "1.1.0";
   const STORE_KEY = "ellinika_v1";
   const ZIEL = 700;
   const DAY = 86400000;
@@ -319,17 +319,41 @@
     $("#b-known").onclick = () => { markKnown(id); sess.neuN++; dayLog().neu++; save(); step(); };
   }
 
+  // Satzbau-Gedächtnis: falsch gebaute Sätze kommen wieder, bis sie zweimal hintereinander richtig waren.
+  function satzEntry(id) { S.satz = S.satz || {}; return S.satz[id] || (S.satz[id] = { fehler: 0, richtig: 0 }); }
+  function satzOffen() { S.satz = S.satz || {}; return Object.keys(S.satz).filter((id) => BY_ID[id] && S.satz[id].richtig < 2); }
+  function satzFalsch(id) {
+    const e = satzEntry(id); e.fehler++; e.richtig = 0;
+    const p = prog(id);                                   // zugehörige Karte eine Stufe zurück
+    if (p.s === "review" || p.s === "known") { p.s = "review"; p.ivl = Math.max(1, Math.floor(p.ivl / 2)); p.due = dueAt(1); p.ease = Math.max(1.3, p.ease - 0.1); }
+    save();
+  }
+  function satzRichtig(id) {
+    S.satz = S.satz || {};
+    if (!S.satz[id]) return;
+    S.satz[id].richtig++; if (S.satz[id].richtig >= 2) delete S.satz[id];
+    save();
+  }
   function showSatzbau() {
-    const pool = CARDS.filter((c) => prog(c.id).s !== "new").filter((c) => { const n = c.bspEl.split(" ").length; return n >= 3 && n <= 8; });
-    const src = pool.length >= 5 ? pool : CARDS.filter((c) => c.set === "kern" && c.bspEl.split(" ").length >= 3 && c.bspEl.split(" ").length <= 8);
-    const c = src[Math.floor(Math.random() * src.length)];
+    const okLen = (c) => { const n = c.bspEl.split(" ").length; return n >= 3 && n <= 8; };
+    sess.satzSeen = sess.satzSeen || [];
+    let c = null;
+    const offen = satzOffen().filter((id) => !sess.satzSeen.includes(id)).sort((a, b) => S.satz[b].fehler - S.satz[a].fehler);
+    if (offen.length && sess.satz < 4) c = BY_ID[offen[0]];   // bis zu 4 Wiederholer pro Session zuerst
+    if (!c) {
+      const pool = CARDS.filter((x) => prog(x.id).s !== "new" && okLen(x) && !sess.satzSeen.includes(x.id));
+      const src = pool.length >= 5 ? pool : CARDS.filter((x) => x.set === "kern" && okLen(x) && !sess.satzSeen.includes(x.id));
+      c = src[Math.floor(Math.random() * src.length)] || CARDS.find(okLen);
+    }
+    sess.satzSeen.push(c.id);
+    const wieder = S.satz && S.satz[c.id] && S.satz[c.id].fehler > 0;
     const tokens = c.bspEl.split(" "); const order = shuffle(tokens.map((_, i) => i));
     let built = [];
     sess.satz++;
     h(`
       ${head("Satzbau", `${sess.satz} / 6`)}
       <div class="card">
-        <div class="tag">Baue den Satz</div>
+        <div class="tag">${wieder ? "Wiederholer · noch " + (2 - S.satz[c.id].richtig) + "× richtig" : "Baue den Satz"}</div>
         <p style="font-size:19px;margin-bottom:4px">${esc(c.bspDe)}</p>
         <div class="built" id="built"></div>
         <div class="tiles" id="tiles">${order.map((i) => `<button class="tile" data-i="${i}">${esc(tokens[i])}</button>`).join("")}</div>
@@ -346,7 +370,8 @@
       const ok = built.every((i, k) => i === k) || built.map((i) => tokens[i]).join(" ") === c.bspEl;
       $("#built").classList.add(ok ? "ok" : "bad");
       $("#result").classList.remove("hidden");
-      $("#result").innerHTML = `<p class="${ok ? "ok-text" : "bad-text"}">${ok ? "Richtig." : "Richtig wäre:"}</p>
+      if (ok) satzRichtig(c.id); else satzFalsch(c.id);
+      $("#result").innerHTML = `<p class="${ok ? "ok-text" : "bad-text"}">${ok ? (wieder && !S.satz[c.id] ? "Richtig. Sitzt jetzt." : "Richtig.") : "Richtig wäre:"}</p>${ok ? "" : `<p class="small muted">Kommt in der nächsten Session wieder, bis es zweimal sitzt. Die Karte dazu ist eine Stufe zurück.</p>`}
         <p style="font-size:20px;font-weight:600">${esc(c.bspEl)} ${speakBtn(c.bspEl, "sm")}</p>
         <button class="btn" id="b-next">Weiter</button>`;
       if (ok) sess.satzOk++;
@@ -380,7 +405,7 @@
           <div class="stat"><b>${s.neuN}</b><span>neu</span></div>
           <div class="stat"><b>${quote === null ? "–" : quote + " %"}</b><span>gewusst</span></div>
         </div>
-        <p class="small muted">Satzbau: ${s.satzOk} von ${s.satz} richtig. ${S.streak > 1 ? `${S.streak} Tage in Folge.` : ""}</p>
+        <p class="small muted">Satzbau: ${s.satzOk} von ${s.satz} richtig.${satzOffen().length ? ` ${satzOffen().length} Satz${satzOffen().length === 1 ? "" : "e"} kommen wieder.` : ""} ${S.streak > 1 ? `${S.streak} Tage in Folge.` : ""}</p>
         <p class="small">Wochen-Mission: Nimm einen Satz von heute und benutze ihn heute noch mit deiner Freundin. Ihre Korrektur schickst du Claude, daraus wird eine Karte.</p>
         <button class="btn" id="b-home">Fertig</button>
         <button class="btn ghost" id="b-more">Noch eine Runde</button>
